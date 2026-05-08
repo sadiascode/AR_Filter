@@ -224,6 +224,7 @@ class ARCameraController extends GetxController {
     }
   }
 
+
   @override
   void onClose() {
     cameraController?.dispose();

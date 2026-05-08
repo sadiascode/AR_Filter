@@ -25,41 +25,23 @@ class CameraScreen extends StatelessWidget {
         return Stack(
           fit: StackFit.expand,
           children: [
-            // 1. Camera Preview
-            _buildCameraPreview(),
-
-            // 2. Sticker Overlay
-            _buildStickerOverlay(context),
-
-            // 3. Simulator Mode Indicator
-            if (controller.isSimulatorMode.value)
-              Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.videocam_off, size: 80, color: Colors.white24),
-                    const SizedBox(height: 20),
-                    Text(
-                      'Simulator/Desktop Mode',
-                      style: TextStyle(
-                        color: Colors.white.withAlpha(150),
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      'Camera & AR tracking disabled',
-                      style: TextStyle(
-                        color: Colors.white.withAlpha(100),
-                        fontSize: 14,
-                      ),
-                    ),
-                  ],
-                ),
+            // 1. Screenshot Area (Camera + Stickers)
+            RepaintBoundary(
+              key: controller.screenShotKey,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  _buildCameraPreview(),
+                  _buildStickerOverlay(context),
+                  
+                  // Simulator Mode Indicator (include in photo if active)
+                  if (controller.isSimulatorMode.value)
+                    _buildSimulatorIndicator(),
+                ],
               ),
+            ),
 
-            // 4. UI Controls
+            // 2. UI Controls (Hides from screenshot)
             _buildTopControls(),
             _buildBottomControls(),
           ],
@@ -68,31 +50,31 @@ class CameraScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildCameraPreview() {
-    final scale = 1 / (controller.cameraController!.value.aspectRatio * Get.width / Get.height);
-    
-    return Transform.scale(
-      scale: scale < 1 ? 1 / scale : scale,
-      child: Center(
-        child: CameraPreview(controller.cameraController!),
+  Widget _buildSimulatorIndicator() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.videocam_off, size: 80, color: Colors.white24),
+          const SizedBox(height: 20),
+          Text(
+            'Simulator/Desktop Mode',
+            style: TextStyle(
+              color: Colors.white.withAlpha(150),
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'Camera & AR tracking disabled',
+            style: TextStyle(
+              color: Colors.white.withAlpha(100),
+              fontSize: 14,
+            ),
+          ),
+        ],
       ),
-    );
-  }
-
-  Widget _buildStickerOverlay(BuildContext context) {
-    final previewSize = controller.cameraController!.value.previewSize!;
-    
-    // ML Kit coordinates are relative to the preview size.
-    // Note: previewSize is (height, width) because of orientation in some cases,
-    // but camera plugin usually gives it correctly for the sensor.
-    // However, on Android/iOS there are differences.
-    
-    return StickerOverlay(
-      face: controller.detectedFace.value,
-      stickerAsset: controller.selectedSticker.value,
-      previewSize: Size(previewSize.height, previewSize.width),
-      screenSize: Size(Get.width, Get.height),
-      isFrontCamera: controller.isFrontCamera.value,
     );
   }
 
@@ -163,6 +145,34 @@ class CameraScreen extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildCameraPreview() {
+    final scale = 1 / (controller.cameraController!.value.aspectRatio * Get.width / Get.height);
+    
+    return Transform.scale(
+      scale: scale < 1 ? 1 / scale : scale,
+      child: Center(
+        child: CameraPreview(controller.cameraController!),
+      ),
+    );
+  }
+
+  Widget _buildStickerOverlay(BuildContext context) {
+    final previewSize = controller.cameraController!.value.previewSize!;
+    
+    // ML Kit coordinates are relative to the preview size.
+    // Note: previewSize is (height, width) because of orientation in some cases,
+    // but camera plugin usually gives it correctly for the sensor.
+    // However, on Android/iOS there are differences.
+    
+    return StickerOverlay(
+      face: controller.detectedFace.value,
+      stickerAsset: controller.selectedSticker.value,
+      previewSize: Size(previewSize.height, previewSize.width),
+      screenSize: Size(Get.width, Get.height),
+      isFrontCamera: controller.isFrontCamera.value,
     );
   }
 

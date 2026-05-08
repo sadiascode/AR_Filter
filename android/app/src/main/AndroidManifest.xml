@@ -14,7 +14,7 @@
 
     <!-- App -->
     <application
-        android:label="Tania"
+        android:label="Arfilter"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
 

@@ -6,6 +6,9 @@ import 'package:get/get.dart';
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 import 'package:gal/gal.dart';
 import 'dart:async';
+import 'dart:ui' as ui;
+import 'package:flutter/rendering.dart';
+import 'package:path_provider/path_provider.dart';
 import '../models/face_model.dart';
 import '../services/face_detector_service.dart';
 
@@ -19,6 +22,8 @@ class ARCameraController extends GetxController {
   final RxBool isCameraInitialized = false.obs;
   final RxBool isProcessing = false.obs;
   final RxBool isSimulatorMode = false.obs;
+  
+  final GlobalKey screenShotKey = GlobalKey();
 
   List<CameraDescription> cameras = [];
   
@@ -168,26 +173,47 @@ class ARCameraController extends GetxController {
   }
 
   Future<void> capturePhoto() async {
-    if (isSimulatorMode.value) {
-      Get.snackbar('Simulator Mode', 'Photo capture is disabled in simulator mode');
+    if (!isSimulatorMode.value && (cameraController == null || !cameraController!.value.isInitialized)) {
       return;
     }
-    
-    if (cameraController == null || !cameraController!.value.isInitialized) return;
 
     try {
-      final XFile file = await cameraController!.takePicture();
+      // 1. Capture the RepaintBoundary as an image
+      final RenderRepaintBoundary? boundary = screenShotKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
       
+      if (boundary == null) {
+        Get.snackbar('Error', 'Could not capture screen');
+        return;
+      }
+
+      // Capture at a higher pixel ratio for better quality
+      ui.Image image = await boundary.toImage(pixelRatio: 3.0);
+      ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      
+      if (byteData == null) {
+        Get.snackbar('Error', 'Failed to process image');
+        return;
+      }
+
+      final Uint8List pngBytes = byteData.buffer.asUint8List();
+
+      // 2. Save to a temporary file
+      final directory = (await getTemporaryDirectory()).path;
+      final String filePath = '$directory/ar_filter_${DateTime.now().millisecondsSinceEpoch}.png';
+      final File imgFile = File(filePath);
+      await imgFile.writeAsBytes(pngBytes);
+      
+      // 3. Save to gallery using Gal
       final bool hasAccess = await Gal.hasAccess();
       if (!hasAccess) {
         await Gal.requestAccess();
       }
       
-      await Gal.putImage(file.path);
+      await Gal.putImage(imgFile.path);
       
       Get.snackbar(
         'Success',
-        'Photo saved to gallery!',
+        'Photo with filter saved to gallery!',
         snackPosition: SnackPosition.BOTTOM,
         backgroundColor: const Color(0xFF1DB954),
         colorText: Colors.white,
